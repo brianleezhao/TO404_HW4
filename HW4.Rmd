@@ -26,6 +26,7 @@ library("gender")
 library("geosphere")
 library("ggmap")
 library("lubridate")
+library("leaflet")
 ```
 
 ## Import Data
@@ -109,15 +110,20 @@ str(airbnb)
 # Questions
 
 ## 1. Calculate interesting metrics and build pursuasive visualizations that help us get a better understanding of the data. For example:
-- Does gender of the Host affect the rental price?
+
+### Does gender of the Host affect the rental price?
 ```{r}
 genderRates <- tapply(airbnb$price, airbnb$gender, mean, na.rm = TRUE)
-barplot(sort(genderRates, decreasing = TRUE))
+barplot(sort(genderRates, decreasing = TRUE), ylab = "Price ($)")
+
+genderAvail <- tapply(airbnb$availability_365, airbnb$gender, mean, na.rm = TRUE)
+barplot(sort(genderAvail, decreasing = TRUE), ylab = "Availability (days)")
 ```
 
-    It seems that on average rental prices are higher for hosts of "unknown" gender (which due to the gender function are often groups of people, such as couples or families). This is closely followed by male hosts, and it seems that female hosts command the lowest rental prices.
+    It seems that on average rental prices are higher for hosts of "unknown" gender (which due to the gender function are often groups of people, such as couples or families). This is closely followed by male hosts, and it seems that female hosts command the lowest rental prices. I assumed that families may charge more due to perception of being safer. However, after comparing the data to availability based on gender, it seems that they are also more available, which I have assumed to mean the listing is booked less. This might indicate that family homes are simply larger and thus more expensive.
 
-- How do rental rates differ between different boroughs
+
+### How do rental rates differ between different boroughs
 ```{r}
 neighbourhoodRates <- tapply(airbnb$price, airbnb$neighbourhood_group, mean, na.rm = TRUE)
 barplot(sort(neighbourhoodRates, decreasing = TRUE))
@@ -125,7 +131,8 @@ barplot(sort(neighbourhoodRates, decreasing = TRUE))
 
     The most expensive listings are in Manhatten, and the least expensive listings are in the Bronx.
 
-- Are reviews important?
+
+### Are reviews important?
 ```{r}
 # Total Number of Reviews
 ggplot(data = airbnb, aes(x = number_of_reviews, y = price)) + geom_smooth()
@@ -142,16 +149,19 @@ reviews_rpm_Rates <- tapply(airbnb$price, airbnb$reviews_per_month, mean, na.rm 
 barplot(reviews_rpm_Rates, ylim = c(0,1000))
 ```
 
-    Reviews per month seems to follow a similar trend to total reviews at first with more reviews per month actually correlating to lower rental prices. However, at around 30 reviews per month this trend reverse and actually leads to slightly higher rental prices.
+    Reviews per month seems to follow a similar trend to total reviews at first with more reviews per month actually correlating to lower rental prices. However, at around 30 reviews per month this trend reverses and actually leads to slightly higher rental prices.
 
-- Think of other questions that may be relevant and can be answered via exploration and visualization of this data.
+
+### Think of other questions that may be relevant and can be answered via exploration and visualization of this data.
 ```{r}
 # SEE QUESTION 4
 ```
 
 
+
 ## 2. Use the latitude and longitude information to build map based visualizations that can provide further insights into the data. For example:
-- Plot 100 most expensive rentals on the map. Do they show a geographic pattern?
+
+### Plot 100 most expensive rentals on the map. Do they show a geographic pattern?
 ```{r}
 register_google(key = "AIzaSyDr6TG5wIRo6iXXvRbE0rV3n2EPx1jApRc", write = TRUE)
 
@@ -161,7 +171,8 @@ airbnb_stays <- airbnb %>%
   summarise(lat = as.numeric(latitude),
             long = as.numeric(longitude),
             name = name,
-            rental_price = price)
+            rental_price = price,
+            availability = availability_365)
 
 # Sort by Price
 airbnb_stays <- airbnb_stays[order(airbnb_stays$rental_price, decreasing = TRUE),]
@@ -173,37 +184,57 @@ airbnb_stays <- head(airbnb_stays, n = 100)
 nyc_map <- get_map(location = 'New York City, New York', 
                        maptype ='roadmap', color='bw', source='google', zoom=11)
 
-# Plot Map
+# Plot Map - ggmap
+
+## Price
 ggmap(nyc_map) + 
   geom_point(data=airbnb_stays, aes(x=long, y=lat, color=rental_price), size=1, alpha=0.5) +
   scale_colour_gradient(high= "red", low= 'green') + 
   theme(axis.ticks = element_blank(), axis.text = element_blank()) +
   xlab('') + ylab('')
+## Availability
+ggmap(nyc_map) + 
+  geom_point(data=airbnb_stays, aes(x=long, y=lat, color=availability), size=1, alpha=0.5) +
+  scale_colour_gradient(high= "red", low= 'green') + 
+  theme(axis.ticks = element_blank(), axis.text = element_blank()) +
+  xlab('') + ylab('')
+
+# Plot Map - leaflet
+leaflet(airbnb_stays) %>%
+  addTiles() %>%
+  addMarkers(popup = paste("Name:", airbnb_stays$name, "<br>", "ID:", airbnb_stays$id, "<br>", "Price: $", airbnb_stays$rental_price)) %>%
+  setView(-73.96, 40.75, zoom = 10)
 ```
 
-    It seems that the map reveals what we would expect based on our previous analyses. The most expensive rentals are as we expected primarily in Manhatten and some are in Brooklyn. Some patterns I recognized are that the most expensive listings seem to be clustered around geographical landmarks such as near Central Park or the water/beaches.
+    It seems that the map reveals what we would expect based on our previous analyses. The most expensive rentals are as we expected primarily in Manhatten and some are in Brooklyn. Some patterns I recognized are that the most expensive listings seem to be clustered around geographical landmarks such as near Central Park or the water/beaches. I also plotted the availablity of these stays and most of these are very available (300+ days), and based on analysis I performed on availability, this makes sense as more expensive listings were generally more available.
+    
+    NOTE: ggmap and leaflet maps are provided to demonstrate/practice both methods, but the data is the same.
+
 
 
 ## 3. Does the description of the rental impact its price?
-- Length of description?
+
+### Length of description?
 ```{r}
 ggplot(data = airbnb, aes(x = descLength, y = price)) + geom_smooth()
 ```
 
-    It seems that the optimal description length to charge the highest rental prices is around 100 characters. Longer and shorter descriptions generally command lower rental prices.
+    It seems that the optimal description length to charge the highest rental prices is around 100 characters. Longer and shorter descriptions generally command lower rental prices. However, another explaination is that more experienced and serious hosts will choose a descriptive yet concise description or listing name, and this happens to fall around 100 characters.
 
-- Specific keywords?
+### Specific keywords?
 ```{r}
 keywordRates <- tapply(airbnb$price, airbnb$keyword, mean, na.rm = TRUE)
-barplot(sort(keywordRates, decreasing = TRUE))
-
+par(mar=c(6,4,2,2))
+barplot(sort(keywordRates, decreasing = TRUE), las=2)
 ```
 
-    It seems that using the keyword "beautiful" and adding exclaimation marks in the description of the listing can lead to a higher rental price. Other popular keywords include "cozy," "cute," and "large," but these keywords seem to actually command a lower rental price than those without any of the keywords.
+    After looking through the data, I identified some common keywords: Beautiful, Large, Cute, Cozy, and the usage of exclaimation points. It seems that using the keyword "beautiful" and adding exclaimation marks in the description of the listing can lead to a higher rental price. Other popular keywords include "cozy," "cute," and "large," but these keywords seem to actually command a lower rental price than those without any of the keywords. It is possible that using these buzzwords could turn off some renters.
+
 
 
 ## 4. Any other interesting and insightful analysis that you may want to conduct.
-- Is a entire (1) home/apt, (2) private room, (3) shared room cheaper?
+
+### Is a entire (1) home/apt, (2) private room, (3) shared room cheaper?
 ```{r}
 roomtypeRates <- tapply(airbnb$price, airbnb$room_type, mean, na.rm = TRUE)
 barplot(roomtypeRates)
@@ -211,7 +242,7 @@ barplot(roomtypeRates)
 
     Entire homes/apartments are much more expensive at an average of `r mean(airbnb[airbnb$room_type == "Entire home/apt", ]$price)` dollars compared to private rooms (`r mean(airbnb[airbnb$room_type == "Private room", ]$price)` dollars) and shared rooms (`r mean(airbnb[airbnb$room_type == "Shared room", ]$price)` dollars)
 
-- What is the most common room type?
+### What is the most common room type?
 ```{r}
 # numEntire <- nrow(airbnb[airbnb$room_type == "Entire home/apt", ])
 # numPrivate <- nrow(airbnb[airbnb$room_type == "Private room", ])
@@ -219,21 +250,23 @@ barplot(roomtypeRates)
 ggplot(data = airbnb, aes(x=room_type)) + geom_bar()
 ```
 
-    Most listings on Airbnb are for entire homes/apts
+    Most listings on Airbnb are for entire homes/apts. This is closely followed by private rooms, and shared rooms are by far the least common in NYC.
 
-- What is the most common type of stay in each borough?
+### What is the most common type of stay in each borough?
 ```{r}
-ggplot(data = airbnb, aes(x=neighbourhood_group)) + geom_bar()
+ggplot(data = airbnb, aes(x=neighbourhood_group, colour = room_type)) + geom_bar()
 ```
 
-    Most listings are located in Manhattan and Brooklyn
+    As we can see most listings are located in Manhattan (#1) and Brooklyn (#2) with the other boroughs being significantly less common rental locations. Although the most common type of stay in Manhatten is entire homes/apts. Private rooms become a much more common option in the other 4 boroughs. This could be due to the fact that in the other boroughs space is very limited and its is more difficult to offer an entire space. Also, based on the previous graph, we know that Manhattan is likely skewing the data slightly.
 
-- How does availability of a rental affect its price?
+
+### How does availability of a rental affect its price?
 ```{r}
 ggplot(data = airbnb, aes(x = availability_365, y = price)) + geom_smooth()
 availabilityRates <- tapply(airbnb$price, airbnb$availability_365, mean, na.rm = TRUE)
 barplot(availabilityRates)
 ```
+    
+    Assumption: Availability is 365 days and for simplicity will assume days that are not available are booked
 
-    As expect listings that are available for a larger percentage of the year are able to charge higher rental prices. However, there is a curious dip around 325/365 days a year. This could be because their lack of availablity is centered around holidays or popular travel times, where the Airbnb owner uses the property themselves instead of renting.
-
+    As expected, listings that are available for a larger percentage of the year are able to charge higher rental prices because they offer renters more flexibility. However, there is a curious dip around 325/365 days a year. This could be because their lack of availablity is centered around holidays or popular travel times, where the Airbnb owner uses the property themselves instead of renting. Another explaination could be that, more expensive rentals are more availablity because their prices are high and less renters can afford them. However, low availability can not be explained in the same manner as the host may just list it for less days.
