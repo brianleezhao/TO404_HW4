@@ -2,14 +2,23 @@
 title: "Homework 4"
 author: "Brian Zhao"
 date: "12/5/2020"
-output: html_document
+output:
+  html_document:
+    number_sections: false
+    toc: true
+    toc_float: 
+      toc_collapsed: true
+    toc_depth: 3
+    theme: lumen
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Libraries
+# Setup
+
+## Libraries
 ```{r}
 library("ggplot2")
 library("dplyr")
@@ -19,13 +28,13 @@ library("ggmap")
 library("lubridate")
 ```
 
-### Import Data
+## Import Data
 ```{r}
 # airbnb <- read.csv("AB_NYC_2019.csv")
 airbnb <- read.csv("AB_NYC_2019_Gender.csv")
 ```
 
-### Explore Data
+## Explore Data
 ```{r}
 str(airbnb)
 head(airbnb)
@@ -33,7 +42,7 @@ tail(airbnb)
 summary(airbnb)
 ```
 
-### Clean Data
+## Clean Data
 ```{r, eval = FALSE}
 # Create Gender Column (from Piazza)
 airbnb$gender <- "unknown"
@@ -96,6 +105,8 @@ airbnb$keyword <- as.factor(airbnb$keyword)
 str(airbnb)
 ```
 
+
+# Questions
 
 ## 1. Calculate interesting metrics and build pursuasive visualizations that help us get a better understanding of the data. For example:
 - Does gender of the Host affect the rental price?
@@ -191,7 +202,7 @@ barplot(sort(keywordRates, decreasing = TRUE))
     It seems that using the keyword "beautiful" and adding exclaimation marks in the description of the listing can lead to a higher rental price. Other popular keywords include "cozy," "cute," and "large," but these keywords seem to actually command a lower rental price than those without any of the keywords.
 
 
-# 4. Any other interesting and insightful analysis that you may want to conduct.
+## 4. Any other interesting and insightful analysis that you may want to conduct.
 - Is a entire (1) home/apt, (2) private room, (3) shared room cheaper?
 ```{r}
 roomtypeRates <- tapply(airbnb$price, airbnb$room_type, mean, na.rm = TRUE)
