@@ -124,12 +124,39 @@ barplot(sort(genderAvail, decreasing = TRUE), ylab = "Availability (days)")
 
 
 ### How do rental rates differ between different boroughs
+
+By Neighborhood Group
 ```{r}
 neighbourhoodRates <- tapply(airbnb$price, airbnb$neighbourhood_group, mean, na.rm = TRUE)
 barplot(sort(neighbourhoodRates, decreasing = TRUE))
 ```
 
     The most expensive listings are in Manhatten, and the least expensive listings are in the Bronx.
+
+By Neighborhood
+```{r}
+# Most Expensive
+airbnb %>%
+  group_by(neighbourhood) %>%
+  summarise(
+    averagePrice = mean(price, na.rm = TRUE)
+  ) %>%
+  arrange(desc(averagePrice)) %>%
+  slice(1:6) %>%
+  ggplot(aes(x = reorder(neighbourhood, -averagePrice), y = averagePrice)) + geom_col()
+
+# Least Expensive
+airbnb %>%
+  group_by(neighbourhood) %>%
+  summarise(
+    averagePrice = mean(price, na.rm = TRUE)
+  ) %>%
+  arrange(averagePrice) %>%
+  slice(1:6) %>%
+  ggplot(aes(x = reorder(neighbourhood, -averagePrice), y = averagePrice)) + geom_col()
+```
+
+    The most expensive listings are in Fort Wadsworth, and the least expensive listings are in Bull's Head
 
 
 ### Are reviews important?
